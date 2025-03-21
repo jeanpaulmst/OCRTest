@@ -5,17 +5,21 @@ import fs from 'fs';
 
 dotenv.config();
 
-const ocrTest = async () => {
+const ocrTest = async (file : File) => {
 
     const apiKey = process.env.MISTRAL_API_KEY;
     const client = new Mistral({apiKey: apiKey});
     const pdfPath = process.env.TEST_DOC_PATH;
 
+    //Subir pdf al clod de mistral
+
+    //Para testear
     const uploaded_file = fs.readFileSync(pdfPath ? pdfPath : "");
+
     const uploaded_pdf = await client.files.upload({
         file: {
             fileName: "uploaded_file.pdf",
-            content: uploaded_file,
+            content: file,
         },
         purpose: "ocr"
     });
@@ -24,17 +28,29 @@ const ocrTest = async () => {
         fileId: uploaded_pdf.id,
     });
 
+    //procesar pdf, da como resultado un json con el markdown (da distintos chunks de un mismo archivo markdown)
     const ocrResponse = await client.ocr.process({
         model: "mistral-ocr-latest",
         document: {
             type: "document_url",
             documentUrl: signedUrl.url,
             
-        },
-        includeImageBase64: true
+        }
     });
 
-    return ocrResponse
+    //concatenar los chunks del markdown devuelto
+    const concatMarkdowns = () => {
+        let markdown : string = ""
+        ocrResponse.pages.forEach((chunk) => {
+
+            markdown = markdown + ' ' + chunk.markdown
+        })
+        return markdown
+    }
+
+    const finalMarkdown = concatMarkdowns();
+
+    return finalMarkdown
 }
 
 export default ocrTest
